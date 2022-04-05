@@ -6,51 +6,30 @@
 # @github： https://github.com/xuhuasheng/mmdetection_plot_pr_curve
 # =========================================================
 
-import os
-import mmcv
+
 import numpy as np
 import matplotlib.pyplot as plt
+from argparse import ArgumentParser
 
 from pycocotools.coco import COCO
 from pycocotools.cocoeval import COCOeval
 
-from mmcv import Config
-from mmdet.datasets import build_dataset
 
-MODEL = "mask_rcnn"
-MODEL_NAME = "mask_rcnn_r50_fpn_1x_coco_senet"
-
-CONFIG_FILE = f"configs/{MODEL}/{MODEL_NAME}.py"
-RESULT_FILE = f"test_result/{MODEL_NAME}/latest.pkl"
-
-def plot_pr_curve(config_file, result_file, metric="bbox"):
-    """plot precison-recall curve based on testing results of pkl file.
+def plot_pr_curve(result_file, ann_file, metric="bbox"):
+    """plot precison-recall curve based on testing results of json file.
 
         Args:
             config_file (list[list | tuple]): config file path.
-            result_file (str): pkl file of testing results path.
+            result_file (str): json file of testing results path.
             metric (str): Metrics to be evaluated. Options are
                 'bbox', 'segm'.
     """
     
-    cfg = Config.fromfile(config_file)
-    # turn on test mode of dataset
-    if isinstance(cfg.data.test, dict):
-        cfg.data.test.test_mode = True
-    elif isinstance(cfg.data.test, list):
-        for ds_cfg in cfg.data.test:
-            ds_cfg.test_mode = True
 
-    # build dataset
-    dataset = build_dataset(cfg.data.test)
-    # load result file in pkl format
-    pkl_results = mmcv.load(result_file)
-    # convert pkl file (list[list | tuple | ndarray]) to json
-    json_results, _ = dataset.format_results(pkl_results)
     # initialize COCO instance
-    coco = COCO(annotation_file=cfg.data.test.ann_file)
+    coco = COCO(annotation_file=ann_file)
     coco_gt = coco
-    coco_dt = coco_gt.loadRes(json_results[metric]) 
+    coco_dt = coco_gt.loadRes(result_file) 
     # initialize COCOeval instance
     coco_eval = COCOeval(coco_gt, coco_dt, metric)
     coco_eval.evaluate()
@@ -98,9 +77,21 @@ def plot_pr_curve(config_file, result_file, metric="bbox"):
     plt.legend(loc="lower left")
     plt.show()
 
-if __name__ == "__main__":
-    plot_pr_curve(config_file=CONFIG_FILE, result_file=RESULT_FILE, metric="segm")
+def main():
+    parser = ArgumentParser(description='COCO Curve Tool')
+    parser.add_argument('result', help='result file (json format) path')
+    parser.add_argument('--ann',
+        default='data/coco/annotations/instances_val2017.json',
+        help='annotation file path')
+    args = parser.parse_args()
+    plot_pr_curve(
+        args.result,
+        args.ann,
+        )
 
+
+if __name__ == '__main__':
+    main()
     
 
 
